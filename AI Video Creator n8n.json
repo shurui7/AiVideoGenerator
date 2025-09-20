@@ -1,0 +1,494 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "qwen/qwen3-8b",
+          "mode": "list",
+          "cachedResultName": "qwen/qwen3-8b"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        912
+      ],
+      "id": "e2f7eb6f-8714-438e-8d1b-85a5e07495a1",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "3bPu86xXlZWDY8wL",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "http://host.docker.internal:3123/mcp/sse",
+        "include": "selected",
+        "includeTools": [
+          "create-short-video"
+        ]
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        656,
+        960
+      ],
+      "id": "cf25d361-c406-4e26-970e-eeb4491e002c",
+      "name": "MCP Client"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        832,
+        304
+      ],
+      "id": "a604a641-cb72-43ab-9c78-b71253391589",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        384,
+        1184
+      ],
+      "id": "b686f04e-3555-4416-98d5-f8e19be2f9b4",
+      "name": "Wait",
+      "webhookId": "fe4501f9-3334-4fc8-b3dd-83ea0ebb14a2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6cc1bd80-2bb7-47b6-950e-be3d6a36a965",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        832,
+        1184
+      ],
+      "id": "e7843e85-61c1-47f2-9129-32dd27116412",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n    \"type\": \"object\",\n    \"properties\": {\n        \"videoId\": {\n            \"type\": \"string\",\n            \"description\": \"the id of the video\"\n        },\n        \"videoTitle\": {\n            \"type\": \"string\",\n            \"description\": \"the title of the video on Youtube\"\n        }\n    },\n    \"required\": [\n        \"videoId\",\n        \"videoTitle\"\n    ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        848
+      ],
+      "id": "ff0a631b-7d4a-472e-9cf4-487d07893391",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:3123/api/short-video/{{ $('Generate video').item.json.output.videoId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        1488
+      ],
+      "id": "082d6738-56a0-4b98-b8e8-82773b2a2df3",
+      "name": "Download the video",
+      "alwaysOutputData": false,
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $('Generate video').item.json.output.videoTitle }}",
+        "regionCode": "CA",
+        "categoryId": "24",
+        "options": {
+          "defaultLanguage": "en",
+          "privacyStatus": "public",
+          "selfDeclaredMadeForKids": false,
+          "tags": "Shorts, Funny, Joke, Comedy, Laugh, Hilarious, Memes, Trending, FunnyShorts, Relatable, Skits, ComedyShorts, Viral, LOL, Humor, YouTubeShorts"
+        }
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        672,
+        1488
+      ],
+      "id": "ab7e8c58-e549-4ff2-8a98-959bc15c731d",
+      "name": "Share on YouTube",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<Instruction>\nTurn the following joke into a short-form video script. \n- Slightly tweak the wording so it's easy to understand when spoken by text-to-speech and readable in subtitles. \n- Keep the humor, punchline, and core meaning intact.\n \nThen, always call the MCP tool `create-short-video` with the following JSON schema:\n{\n  \"videoId\": \"<unique lowercase alphanumeric id>\",\n  \"videoTitle\": \"<catchy YouTube Shorts title, max 50 chars>\",\n  \"script\": \"<the generated script text here>\"\n}\n \nDo not just return plain text. Always invoke the tool.\n</Instruction>\n \n<Joke>\n{{ $json.data[8].title }}\n{{ $json.data[8].contentSnippet }}\n</Joke>",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        544,
+        624
+      ],
+      "id": "e1442bf5-f77e-42fd-9d81-00acde236ff3",
+      "name": "Generate video"
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:3123/api/short-video/{{ $('Generate video').item.json.output.videoId }}/status",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        1184
+      ],
+      "id": "c59dfe4e-3070-458b-b048-8a1d36c092ba",
+      "name": "Check video status",
+      "alwaysOutputData": false,
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "220a5d64-eea7-47fb-9557-682ed4ac2670",
+              "name": "title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "667fc922-3cb8-41cf-b86e-e635cf75bdc2",
+              "name": "contentSnippet",
+              "value": "={{ $json.contentSnippet.split('submitted')[0].trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        304
+      ],
+      "id": "e8d7016d-c347-4e17-87bb-0b071a9b97f5",
+      "name": "Map fields"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.reddit.com/r/Jokes/top/.rss?t=day",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        304
+      ],
+      "id": "962c9fcb-8b9f-47f1-b1fd-a83c6046119c",
+      "name": "Get top weekly posts"
+    },
+    {
+      "parameters": {
+        "content": "# Short Video Maker Workflow\n\nThis workflow generates and uploads short videos automatically.\n\n⚠️ Before running, execute the following command in your terminal to start the MCP server:\n\n```\ndocker run -it --rm --name short-video-maker -p 3123:3123 -e LOG_LEVEL=debug -e PEXELS_API_KEY=INSERT_YOUR_KEY gyoridavid/short-video-maker:latest-tiny\n```\n\nThis ensures the MCP server is running and accessible.",
+        "height": 420,
+        "width": 780,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        592
+      ],
+      "id": "7be19319-a1eb-4294-ae78-148a0ae45bbf",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        640,
+        48
+      ],
+      "id": "6dfda7b0-8492-4a4f-b174-30e03d886012",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "content": "The workflow starts manually when you click “Test workflow” in n8n."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f5a1f578-fce0-40f0-be84-38c90f9d3c59",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "It fetches the top daily posts from r/Jokes using the Reddit RSS feed.\n\nThe jokes’ title and content are cleaned and mapped into fields for easier processing.\nThen, all jokes are aggregated together.",
+        "height": 220
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ],
+      "id": "a8cc6f9b-faff-4473-942a-c6472c4e7db5",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "A local LLM (via OpenAI Chat Model + MCP Client) turns each joke into:\n\t•\tA short-form video script (adapted for TTS and subtitles).\n\t•\tA structured output with a videoId and a videoTitle."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        592
+      ],
+      "id": "e148831b-f3c6-4f85-8287-20e314582073",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "The MCP server (short-video-maker) starts creating the video.\nThe workflow waits, then repeatedly checks the status until the video is ready."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        32,
+        1168
+      ],
+      "id": "682b252c-9e5a-484c-9172-ccc5e428d036",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "Once ready, the workflow downloads the generated video from the MCP server."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        1440
+      ],
+      "id": "79a72d94-a549-4289-9944-fa9891c2451f",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "This module is optional as you can freely download the videos from the previous node, it's made for ease of use"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        1440
+      ],
+      "id": "9db28863-95a2-48d1-94a5-b4162ff48f0b",
+      "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate video",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Client": {
+      "ai_tool": [
+        [
+          {
+            "node": "Generate video",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Generate video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Check video status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Download the video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate video",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download the video": {
+      "main": [
+        [
+          {
+            "node": "Share on YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate video": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check video status": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map fields": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get top weekly posts": {
+      "main": [
+        [
+          {
+            "node": "Map fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get top weekly posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "04fbeb63-bfa3-4bb6-9002-3ae8a088bf5c",
+  "meta": {
+    "instanceId": "b924f409993015c5836640b3d19bb6a3342b6a7d8a5e5ae95a7ba48856e58129"
+  },
+  "id": "PkvxDJ5W7DXSXXN8",
+  "tags": []
+}
